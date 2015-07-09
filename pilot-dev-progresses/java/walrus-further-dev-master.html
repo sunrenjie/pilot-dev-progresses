@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta http-equiv=Content-Type content="text/html; charset=utf-8" />
+    <title>Further development of the walrus project</title>
+</head>
+
+<body style="font-family:'Palatino Linotype', sans-serif">
+<h2>Further development of the walrus project</h2>
+
+<h3>Preliminaries</h3>
+
+<p>Walrus (project homepage: <a href= "http://sourceforge.net/projects/walruscms/">
+    http://sourceforge.net/projects/walruscms/</a>)
+    is a CMS application written in Java. While it has many interesting features, it is now
+    considerable outdated. Our further development here shall try to bring the project
+    up-to-date to reflect state-of-art technologies.</p>
+
+<h3>Bugfixes</h3>
+
+<ol>
+    <li>
+        <h4>bug-201506-24-1-improved-compatibility-and-dependency</h4>
+
+        <p>The latest (1.5.0) software could be improved in terms of compatibility and
+            dependency in many aspects:</p>
+
+        <ul>
+            <li>
+                <p>The latest 1.5.0 walrus app does not work in the login portal url is
+                    '/cms/login', but we prefer relative urls than absolute ones such that they are
+                    really 'portable'. Also, deployment methods evolved from jetty 7 to 9; we'd
+                    like walrus to be compatible with them all as much as possible.</p>
+            </li>
+
+            <li>
+                <p>Also, walrus is dependent on many modules not found on common maven
+                    repositories. This makes it impossible to build without much effort on building
+                    customized maven proxy servers, etc. We'd like to remove such dependencies as
+                    much as possible.</p>
+            </li>
+
+            <li>
+                <p>The directory holding the uploaded files shall be defined more
+                    reasonably.</p>
+            </li>
+        </ul>
+    </li>
+
+    <li>
+        <h4>bug-201506-24-2-i18n</h4>
+
+        <p>The internationalization is incomplete and not clean; we shall fix that.</p>
+    </li>
+
+    <li>
+        <h4>bug-201506-24-3-code-clean-up</h4>
+
+        <p>The code shall be cleaned up in may ways:</p>
+
+        <ul>
+            <li>The usages of google services.</li>
+        </ul>
+    </li>
+
+    <li>
+        <h4>bug-201506-24-4-doc-building</h4>
+
+        <p>Building of HTML user guide from docbkx doc shall be fixed and made available as
+            maven commands; all .xml files are already there.</p>
+    </li>
+
+    <li>
+        <h4>bug-201506-24-5-db-support</h4>
+
+        <p>Support of databases is near to complete; yet it shall be made complete and easy
+            to use.</p>
+    </li>
+</ol>
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv=Content-Type content="text/html; charset=utf-8" />
+    <title>vCPT developmental progress</title>
+</head>
+
+<body style="font-family:'Palatino Linotype', sans-serif">
+<h2>Blueprints, Bugs, Recommendations for the vCPT project</h2>
+<hr />
+
+<h3>Blueprints for the vCPT project</h3>
+
+<ol>
+    <li>
+        <h4>[bp-201503-1-predefine-metrics-filter-sets] [priority: low] To define customized sets of filters,
+            extend command line argument handling to support that
+            <span style="color:red">[20150512: abandoned because of little motivation to implement after
+                bp-201503-3-track-perf-file-and-table-names is landed]</span></h4>
+
+        <p>The existing way of describing filters is via command line argument. It was previously defined this
+            way out of concern that the exact set of metrics to use may change too quickly and hard to keep track
+            of at the core logic. Now it has grown a bit too complex, yet is still unable to meet our needs to
+            customize. The main reason is that metrics involve too many aspects of factors: groups(cpu, mem, net,
+            etc), names (usage, readIOSize, etc), units (number, kiloBytesPerSecond, etc), instances (vmnic0,
+            vmnic1, etc), entity types (virtual machines, hosts) to be described easily at command line.</p>
+
+        <p>After certain sets of metrics that are used frequently (or even routinely) are introduced to the
+            library, user code that uses them have the benefits of</p>
+
+        <ul>
+            <li>Improved management and performance. <span style="text-decoration: line-through;">The perf db
+        table name now can be well-defined without column digests.</span> UPDATE: due to possibly changing
+                configurations (NICs, etc), we'd still need to compute column/metrics digest. We could store the
+                table name in conf db (or somewhere else), and there will be no more need to search the sqlite3 perf
+                db tables.</li>
+
+            <li>Simplified command line argument handling.</li>
+
+            <li>Ideally, we could even define together the common protocols for fetching and querying perf data;
+                this way our code is better managed.</li>
+        </ul>
+
+        <p>The old mechanism of filtering via command line still proves useful and shall be maintained as
+            before.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201503-2-uuid-without-hyphens] To remove hyphens from UUID strings <span style="color:red">
+            [20150410: committed as 35678f and merged to master]</span></h4>
+
+        <p>We use entity UUID to encode perf db table names, yet hyphen characters are not allowed in tables
+            names. By removing the hyphens, the encoding process can be simpler.</p>
+
+        <p>This change is trivial to implement: just change the UUID generator from str(uuid.uuid4()) to
+            uuid.uuid4().hex.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201503-3-track-perf-file-and-table-names] <span style="color:red">[20150410: committed as
+      ce4104 and merged to master]</span></h4>
+
+        <p>Present idea is that perf data is stored in sqlite3 database files, organized with the help of file
+            system. This arrangement has the benefits of better management and improved flexibility. Perf data
+            essentially is periodic (typically per-day; to ease storing, querying, etc), per-entity type (entities
+            of different types certainly have different perf metrics), per-entity (such that time can be primary
+            key) This approach suffers from a number of shortcomings:</p>
+
+        <ul>
+            <li>As a performance optimization, we write SQL clauses for the perf data fetched from vCenter, while
+                running a daemon that execute the file to yield db files. This way it is impossible to determine
+                whether perf data for some entities is fetched, without help of other data structures. Shared
+                storages across vCenter servers are especially affected: perf data for them may be repeatedly
+                fetched.</li>
+
+            <li>Due to the fact that metrics are not fixed, table names for the perf data are determined in terms
+                of the metrics actually used. This way the file and table names are not directly available without
+                searching.</li>
+        </ul>
+
+        <p>The file and table names of perf data may be stored in (and correlated directly to) the conf db, or
+            a meta-data sqlite3 db somewhere in perf directory. This BP is related to
+            <strong>[bp-201503-1-predefine-metrics-filter-sets]</strong>, which will help further refine table
+            names.</p>
+
+        <p><strong>[Possibility of storing table names in sqlite3 DBMS]</strong> It is obvious that even with
+            BP <strong>[bp-201503-1-predefine-metrics-filter-sets]</strong>, it is difficult to have perf metrics,
+            and hence table names fixed, considering that the available NICs and other factors have to be
+            determined in runtime and may subject to changes. A pragmatic approach will be to (still) encode
+            metrics digest in table name, then store table names in a dedicated db. This db is related more to the
+            perf data than to the config db, therefore, it shall be stored together with perf data, and hence in
+            sqlite3 DBMS. The columns are well-defined, data size is minimal, therefore it is preferable to write
+            to sqlite3 db files directly.</p>
+
+        <p>The table name db shall be global to all vCenter servers such that perf data for cross-vCenter
+            datastores can be managed in one place. Also, the db shall be sharded on per-entity type basis (for
+            performance reasons only, AFAIK); this implies that entity type names shall be encoded in the db file
+            names.</p>
+
+        <p>Its columns may be entity-id (UUID), begin, until, (we could use these two to know whether some perf
+            data has or has not been fetched), table-name. We won't store file names in the DB, though, as the perf
+            data is stored in a per-day periods, the file names change periodically. We could not store that in a
+            db whose records may cover for much larger a period.</p>
+
+        <p>The fact that the number of tables and the table columns are well-defined suggests that we could use
+            SQLAlchemy.</p>
+
+        <p style="color:red;">Chances are that the BP
+            <strong>[bp-201503-1-predefine-metrics-filter-sets]</strong> may be deprecated after this BP could
+            finally solve our problems.</p>
+
+        <p>[Update] Now that our model is based on SQLAlchemy, the actual impl. supports both sqlite3 and
+            mysql.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201503-4-storing-perf-data-in-an-alternative-DBMS][priority: low]</h4>
+
+        <p>The current approach of storing perf data in sqlite3 database file is too low-level. We must deal
+            with two DBMS'es.</p>
+
+        <p>We explored SQLAlchemy a bit for ideas, but could not come up with a clear clue. Currently we'd
+            rather maintain the sqlite3 DBMS, leaving this BP as low priority.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201504-1-per-entity-type-perf-fetcher-app] <span style="color:red">[20150414: committed as
+            6e130b2 and merged to master]</span></h4>
+
+        <p>This BP shall develops an app based on the existing fetch-vcenter-configurations-and-perf-data.py
+            that fetch perf data for entities of only a particular type. This reduces pressures on our
+            metrics-filter command line description as we will only need to care about only a particular type.
+            Chances are that this BP will leave BP <strong>[bp-201503-1-predefine-metrics-filter-sets]</strong>
+            unnecessary.</p>
+
+        <p>This bp is considered dependent on [bug-201504-3-vCenter-entity-type-name-strings-out-of-control];
+            therefore, we delayed this bp until the latter is fixed.</p>
+
+        <p>There is one choice that we shall make: while fetching perf data for one particular entity type, do
+            we need to update config info for entities of other types? Doing so make the config db tables updated
+            together as a whole, but may be unnecessary. One solution will be to leave the burden of updating the
+            config db tables to a dedicated daemon running app fetch-vcenter-configurations.py.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201504-2-one-perf-dir-for-all-vCenter-servers] To merge per-vCenter perf data directories into
+            one</h4>
+
+        <p>For simplicity, previously we write perf data for different vCenter with different prefix (via
+            external bash scripts). Yet, this will make it difficult to fetch/query perf data for datastores shared
+            across vCenter servers. Until we could know whether a datastore has its perf data fetched elsewhere, we
+            would have to fetch and store the same data twice.</p>
+
+        <p>This BP shall remove those obstacles that stop us from keeping perf data together. Currently, the
+            conf db is shared across vCenter servers, the abilities to disambiguate it provides is a good point to
+            start. The remaining problems are:</p>
+
+        <ul>
+            <li>Simultaneous writing of perf data to db and plain sql text files shall be supported. While
+                sqlite3 DBMS has the idea of transaction that allows safe shared access, the file system behind the
+                sql text files may not. Therefore, we either introduce mutexes for accessing text files, or allow
+                different chunks of sql text be written to different files that can still be collected and executed
+                correctly by the app scan-perf-data-dir-and-execute-sql.py (after extension of course).</li>
+        </ul>
+    </li>
+
+    <li>
+        <h4>[bp-201504-3-actual-ranges-for-intervals] To define actual time ranges (aligned at boundaries) for
+            which perf data is available for various intervals <span style="color:red">[20150405: impl. committed
+      and merged to master as b96d8c1]</span></h4>
+
+        <p>vCenter perf data is available at different intervals, past hour (realtime), past day, etc.
+            Pragmatically, we could not fetch data exactly in such periods. For one thing, some data points may be
+            mysteriously missing at the beginning and ending of the requested time ranges (due to vCenter bugs). On
+            the other hand, due to unexpected delays in our program execution time, the periodic requests we make
+            may lave gaps in the time line that can never be filled.</p>
+
+        <p>Therefore, we shall fetch data in smaller ranges with endings aligned at specific boundaries, and
+            for convenience, roughly half the size of the vCenter intervals: half hour for past hour, half day for
+            past day, etc. The fetching frequency will double, but all beginning and ending time points will be at
+            well-defined boundary, making perf data fetching/querying/processing easier in many aspects.</p>
+
+        <p>This idea is already implemented in fetching realtime perf data: for every half hour, fetch real
+            time perf data for the last half hour at half-hour boundary (plus small extensions on both ends to work
+            around aforementioned bugs). But it is not yet feature-complete: in impl. of BP
+            [bp-201503-3-track-perf-file-and-table-names] (which is dependent on this BP) , a mechanism is needed
+            to tell from the perf index db that whether the current fetch is needed, or can be avoided. In
+            addition, it seems good to generalize such idea to other intervals. Thus, in this BP, we will define
+            explicitly the actual ranges we support for the various intervals.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201504-14-4-app-query-db-for-hosts-and-VMs] <span style="color:red">[20150429: impl. committed
+      and merged to master as 32a7f77]</span></h4>
+
+        <p>We already have the query db apps for clusters, datastores, resource pools; we shall implement the
+            rest for the sake of completeness.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201504-14-5-real-time-perf-data-for-datastores]</h4>
+
+        <p>Our current implementation fails to fetch real time perf data for datastores, though obviously such
+            data indeed exists according to vCenter.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201504-15-6-tracking-changing-of-config-db] [priority: high]</h4>
+
+        <p>Change tracking has always been one of the trickiest topic in information management. For vCenter
+            server, this may include host CPU/memory changes (degradation due to hardware failure, or change of
+            configuration by human), virtual machine CPU/memory changes (scaling, etc). Without precise tracking of
+            the entity configurations, the perf data is very difficult if possible to interpret.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201504-15-7-pilot-perf-data-querying-app] [priority: very high] <span style="color:red">
+            [20150514: committed as b4ecd32 and merged to master]</span></h4>
+
+        <p>The perf data fetching code runs well. We shall land the querying code ASAP to provide feedback for
+            the fetching code and other functionality alike.</p>
+
+        <p>Update: this bp is dependent on fix for
+            <strong>[bug-201504-17-10-perf-db-table-names-begin-with-number]</strong>, which shall define table
+            name construction as code shared by both fetching and querying code.</p>
+
+        <p>In this bp, we may implement apps for hosts and virtual machines.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201505-06-1-PerfSqlite3Manager-enhancements] <span style="color:red">[20150512: fix committed
+      as 5675544 and merged to master]</span></h4>
+
+        <p>During working on [bp-201504-15-7-perf-data-querying-app], it is obvious that this class needs at
+            least these improvements:</p>
+
+        <ul>
+            <li>Functions like get_day_string_from_datetime() and get_full_time_from_datetime() shall be renamed
+                to reflect their purposes instead of implementations.</li>
+
+            <li>Entity type, instead of entity shall be accepted as parameter to __init__(). The perf querying
+                code does not connect to vCenter and cannot get MOB entities easily. The change is easy to made since
+                this class uses entities only to derive entity types to construct path for the db files.</li>
+
+            <li>Filters id shall be removed from parameters to __init__(). Instead, all get_perf_data* functions
+                requires filters id as an additional parameter. This change is because we may request multiple paths
+                for multiple filter ids. Having one perf manager object for one request seems awkward.</li>
+        </ul>
+
+        <p>The functions related to perf data querying shall be introduced along with the usages.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201505-06-2-argument-parsing-extension] <span style="color:red">[20150512: fix committed as
+      ba2b6f3 and merged to master]</span></h4>
+
+        <p>Apps developed in [bp-201504-15-7-perf-data-querying-app] needs additional arguments
+            time-range(begin/until), data prefix, while arguments used to connect to vCenter server shall be
+            removed. This suggests that some refactoring.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201505-06-3-dedicated-timeutils] <span style="color:red">[20150512: fix committed as 4594e6b
+      and merged to master]</span></h4>
+
+        <p>As new features are landed, more and more time-related functionality are implemented and can
+            potentially be shared.</p>
+    </li>
+</ol>
+<hr />
+
+<h3>BUGs for the vCPT project</h3>
+
+<ol>
+    <li>
+        <h4>[bug-201504-1-no-obsoleting-old-entries] <span style="color:red">[20150403: fix committed as
+      95b785c and merged to master]</span></h4>Needed thorough understanding of how the changing of ID of the
+        entities affect our system, the perf data availability, etc. Before that, the apps shall not do that.
+    </li>
+
+    <li>
+        <h4>[bug-201504-2-to-disable-MOB-IDs-for-datastores] <span style="color:red">[20150403: fix committed
+      as 4b52a45 and merged to master]</span></h4>Datastore MOB IDs change from one vCenter server to
+        another. Therefore, the MO IDs shall be removed from invariants for entities shared across vCenter
+        servers. Presently, those affected are datastores.
+    </li>
+
+    <li>
+        <h4>[bug-201504-3-vCenter-entity-type-name-strings-out-of-control] <span style="color:red">[20150410:
+      fix committed as e239ea and merged to master]</span></h4>
+
+        <p>The direct usage of vCenter entity type names in the codebase has grown more and more ubiquitous.
+            From the practice of programming point of view, repeated usage of strings suggest that they shall be
+            defined with dedicated names. This bug entry shall impl. such definitions.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201504-4-considerable-old-code] [priority: medium]</h4>
+
+        <p>This bug is filed to address the code obsoleted by new directions. For example, some apps are for
+            old workflows. While we may use the old code sometime, we shall at least make such details well
+            documented.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201504-5-incorrect-Hz-conversion] <span style="color:red">[20150414: committed as 29650ab and
+      merged to master]</span></h4>
+
+        <p>Previously, we thought 1GHz = 1024MHz, just as 1GB = 1024MB; but this turns out to be wrong.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201504-6-chaotic-time-zone-usages] <span style="color:red">[20150414: committed as be4c91e and
+      merged to master]</span></h4>
+
+        <p>Currently, the usages of time zone is rather arbitrary. Appropriate guide lines are needed. Old app
+            fetch-perf-data-by-entity-type.py (and its dependent code) shall be kept as is. We just want it to work
+            as before.</p>
+
+        <p>[Implementation notes] The core library part now uses vCenter server time (with time zone set to
+            GMT) exclusively. Now the user land app may be implemented with time zone in mind.&lt;/&gt;</p>
+    </li>
+
+    <li>
+        <h4>[bug-201504-7-surrounding-apostrophes-in-mo-id-strings] <span style="color:red">[20150414:
+      committed as 2f2d068 and merged to master]</span></h4>
+
+        <p>MO IDs are generated by str(entity) for simplicity, but that will leave surrounding apostrophes
+            (single quotes) in the string. We'd better remove them.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201504-15-8-multiple-cpu-models-in-clusters] [priority: high]</h4>
+
+        <p>Different CPUs may be installed on different hosts in the same cluster. For example, while generally
+            not recommended, AMD and Intel CPUs may co-exist. Our current implementation is to store only one
+            model. If there are multiple models, select one randomly. The key part may be that, we need the exact
+            CPU configuration of the host running the virtual machine, in order to interpret the perf data a bit
+            more precisely.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201504-17-9-db-lock-failure] [priority: high] <span style="color:red">[20150417: committed as
+      03c94f6 and merged to master]</span></h4>
+
+        <p>While four copies of app fetch-vcenter-configurations-and-perf-data-by-entity-type.py are running on
+            behalf of the four vCenter servers, sometimes the error 'Lock wait timeout exceeded; try restarting
+            transaction' occurs on the config db. The cause turns out to be that we do not commit db sessions fast
+            enough. After session.add() is called until the calling of session.commit(), the db record
+            create/update/delete requests are pending at the db. Other requests have to wait for the pending
+            requests to be persisted to the db, in order to gain the lock and proceed. After waiting for a period
+            longer than a predefined value, the error appears.</p>
+
+        <p>Previously, we delay commit() as much as possible in the (not necessarily realistic) hope of better
+            performance. Now we shall commit whenever a request is made to the db at session.flush() (possibly at
+            calling session.add(), if autoflush defaults to True).</p>
+    </li>
+
+    <li>
+        <h4>[bug-201504-17-10-perf-db-table-names-begin-with-number] <span style="color:red">[20150417:
+      committed as 553168d and merged to master]</span></h4>
+
+        <p>The bug is introduced in the initial implementation of perf index db, in which table names are
+            simplified, which turned out to be an over-simplification. Now we shall prefix the table name with some
+            well-defined non-number characters. Possible candidates are fixed strings maybe as simple as '_', or
+            variable ones like entity types. The former is preferred, since it is the simplest and, actually, no
+            other kinds of info may prove useful here.</p>
+
+        <p>The table construction is better defined as shared by fetching/querying code.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201505-06-01-refine-variants-and-mutables-for-hosts] <span style="color:red">[20150512:
+      committed as e31bd34 and merged to master]</span></h4>
+
+        <p>Previously, host CPU frequency is listed as invariants, as it is believed to remain the same as long
+            as the CPU configuration does not change. But such change (by very small a quantity) is already
+            observed, even when the CPU model, etc do not change. We shall relax the protection by invariants and
+            take cpu frequency from invariants to mutables. On the other hand, the number of CPU cores may change
+            during the hardware maintenance cycle. They are previously listed as mutables, now we consider it
+            better defined as invariants, since hardware configuration change is one of the types of changes that
+            we wish to track.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201505-07-2-incorrect-perf-data-columns] <span style="color:red">[20150512: committed as
+      89bc166 and merged to master]</span></h4>
+
+        <p>While computing id (actually md5 digest) for the metrics, we typically sort the columns such that
+            the id does not change even if vCenter reorders the columns. Yet incorrectly-performed sorting
+            resulting in wrong columns and hence data interpretation.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201505-07-3-filters-cannot-defaults-to-None] <span style="color:red">[20150512: committed as
+      3dfd9d1 and merged to master]</span></h4>
+
+        <p>Metric filters, if not specified in command line argument, defaults to None. Yet None argument to
+            hashlib.md5() will raise TypeError exception. The BP [bp-201505-06-2-argument-parsing-extension] shall
+            define filters to default to '' if it is not specified, as a part of feature completeness effort. This
+            bug targets shall default function argument, etc.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201505-21-4-obsoleting-old-entries-if-possible]</h4>
+
+        <p>We shall mark entries that are old enough as obsoleted.</p>
+
+        <p>For now, the obsoleting is performed by the fetch-vcenter-configurations*.py apps. Essentially, one
+            app fetch time from the vCenter server on behalf of which it is running, determine the time point, then
+            obsolete all entries of all vCenter servers older than that time. This seems a bit ugly. But consider
+            that in typical setup, all vCenter servers are configured to sync with the same NTP server; they can be
+            considered to share time. Therefore, we don't consider such practice a great problem.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201505-21-5-accumulated-code-nits-update]</h4>
+
+        <p>There are plenty of nits that invites update: code that does not conform to PEP8, innocent yet ugly
+            coding, dead code, unused imports, outdated entries requirements.txt, obsoleted TODOs, comments that
+            disagree with code, etc.</p>
+    </li>
+
+    <li>
+        <h4>[bug-201505-22-6-obsoleted-config-db-entries-cannot-be-reused]</h4>
+
+        <p>Presently, obsoleted config db entries cannot be re-picked up to use, as sync_into_session() never
+            considers obsolete entries. This behavior contradicts with the design of the db record life cycle. The
+            direct consequence is that the number of obsoleted entries will only irreversibly grow, or even double
+            (e.g., on vCenter server and/or network failure). By re-using obsoleted entries, we essentially could
+            tolerate unexpected consequences in the obsoleting code: if some entries are obsoleted yet should not
+            have been, the re-picking up will simply reverse it.</p>
+    </li>
+</ol>
+<hr />
+
+<h3>Developmental Recommendations</h3>
+
+<ol>
+    <li>
+        <h4>Preparation of a git commit message</h4>
+
+        <p>The message shall at least contain the origin of the commit, blueprint id or bug id, etc.</p>
+    </li>
+</ol>
+</body>
+</html>
