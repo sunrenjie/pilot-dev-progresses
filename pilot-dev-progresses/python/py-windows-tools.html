@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv=Content-Type content="text/html; charset=utf-8" />
+    <title>py-windows-tools developmental progress</title>
+</head>
+
+<body style="font-family:'Palatino Linotype', sans-serif">
+<h2>Blueprints, Bugs, Recommendations for the py-windows-tools project</h2>
+<hr />
+
+<h3>Blueprints</h3>
+<ol>
+    <li>
+        <h4>[bp-201507-09-1-using-utf8-exclusively]</h4>
+
+        <p>I/O with non-ASCII (Chinese in our case) can be daunting for Python 2. During the initial development, we
+            used GBK during the desperate effort of getting the code work. But, in order to make our life easier,
+            we shall abandon such approach and use UTF-8 exclusively. One good news is that the project ztb-crawler has
+            already made good progress, we may borrow idea and code from there.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201507-09-2-allow-reading-from-event-log-file]</h4>
+
+        <p>There is no reason to restrict us to read from the Windows event log system only. The ability to read from
+            log file can make testing easier, among other benefits.</p>
+
+        <p>The bp is dependent on <span>[bp-201507-09-1-using-utf8-exclusively]</span>.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201507-10-3-faulty-management-for-blocked-ip-time-stamp]</h4>
+
+        <p>The current stamp management for the suspects is just quick-and-dirty, plus being buggy. It suggests a
+            complete overhaul.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201507-10-4-complete-life-cycle-for-the-IPs</h4>
+
+        <p>Currently, IPs can find their way to the suspect list and prisoner list (firewall black-list), but there is
+            yet no way out. There are cases when we wish to release some outdated or all suspects/prisoners (to clean
+            up, for example).</p>
+    </li>
+
+    <li>
+        <h4>[bp-201507-10-5-break-up-the-code]</h4>
+
+        <p>The program has grown from a humble script to a giant beast. It is time to break it up and get things
+            cleaned up.</p>
+    </li>
+
+    <li>
+        <h4>[bp-201507-10-6-testing-code-needed]</h4>
+
+        <p>We are in desperate need for that.</p>
+    </li>
+</ol>
+<hr>
+<h3>Bugs</h3>
+<ol>
+    <li>
+    </li>
+</ol>
+</body>
+</html>
