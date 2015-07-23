@@ -3,6 +3,9 @@
 <head>
     <meta http-equiv=Content-Type content="text/html; charset=utf-8" />
     <title>py-windows-tools developmental progress</title>
+    <style type="text/css">
+        span.commit-message { color: green}
+    </style>
 </head>
 
 <body style="font-family:'Palatino Linotype', sans-serif">
@@ -12,7 +15,8 @@
 <h3>Blueprints</h3>
 <ol>
     <li>
-        <h4>[bp-201507-09-1-using-utf8-exclusively]</h4>
+        <h4>[bp-201507-09-1-using-utf8-exclusively] <span class="commit-message">Committed at 20150709, merged to
+            master at 20150714</span></h4>
 
         <p>I/O with non-ASCII (Chinese in our case) can be daunting for Python 2. During the initial development, we
             used GBK during the desperate effort of getting the code work. But, in order to make our life easier,
@@ -21,7 +25,8 @@
     </li>
 
     <li>
-        <h4>[bp-201507-09-2-allow-reading-from-event-log-file]</h4>
+        <h4>[bp-201507-09-2-allow-reading-from-event-log-file] <span class="commit-message">Committed at 20150710,
+            merged to master at 20150714</span></h4>
 
         <p>There is no reason to restrict us to read from the Windows event log system only. The ability to read from
             log file can make testing easier, among other benefits.</p>
@@ -30,14 +35,15 @@
     </li>
 
     <li>
-        <h4>[bp-201507-10-3-faulty-management-for-blocked-ip-time-stamp]</h4>
+        <h4>[bp-201507-10-3-faulty-management-for-blocked-ip-time-stamp] <span class="commit-message">Committed at
+            20150710, merged to master at 20150714</span></h4>
 
         <p>The current stamp management for the suspects is just quick-and-dirty, plus being buggy. It suggests a
             complete overhaul.</p>
     </li>
 
     <li>
-        <h4>[bp-201507-10-4-complete-life-cycle-for-the-IPs</h4>
+        <h4>[bp-201507-10-4-complete-life-cycle-for-the-IPs]</h4>
 
         <p>Currently, IPs can find their way to the suspect list and prisoner list (firewall black-list), but there is
             yet no way out. There are cases when we wish to release some outdated or all suspects/prisoners (to clean
@@ -61,6 +67,18 @@
 <h3>Bugs</h3>
 <ol>
     <li>
+        <h4>[bug-201507-16-1-shall-use-utf8-for-output-file-handle] <span class="commit-message">Committed at
+            20150717, merged to master at 20150723</span></h4>
+
+        <p>Previously, the BP [bp-201507-09-1-using-utf8-exclusively] provides an incomplete solution. The output
+            handle is opened the default way. But in order to support UTF-8, the file handles in Windows may need to
+            be opened as 'utf-8'; otherwise writing non-ASCII characters will immediately raise exception.
+        </p>
+
+        <p>This bug costs us so long time to discover, since during the testing, we typical run the program either at
+            command prompt or as Windows service (via ServiceEx). The bug is not triggered in the former cases and is
+            not obvious in the latter cases (the only phenomenon will be that the service is seemingly restarted quite
+            randomly and with absolutely no diagnostic messages).</p>
     </li>
 </ol>
 </body>
